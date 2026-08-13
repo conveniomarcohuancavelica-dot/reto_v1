@@ -2,6 +2,7 @@ package com.reto.order.service;
 
 import com.reto.order.client.InventoryClient;
 import com.reto.order.domain.Order;
+import com.reto.order.domain.OrderHistory;
 import com.reto.order.domain.OrderStatus;
 import com.reto.order.dto.CreateOrderRequest;
 import com.reto.order.dto.InventoryAvailabilityResponse;
@@ -19,6 +20,7 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -157,5 +159,37 @@ class OrderServiceImplTest {
         StepVerifier.create(orderService.createOrder(request, "trace-999"))
                 .expectNextMatches(r -> r.status() == OrderStatus.FAILED)
                 .verifyComplete();
+    }
+
+    @Test
+    void getHistory_deberiaMapearElHistorialDelPedidoEnOrden() {
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(pendingOrder));
+        Instant t1 = Instant.now().minusSeconds(60);
+        Instant t2 = Instant.now();
+        OrderHistory h1 = OrderHistory.builder()
+                .orderId(orderId).previousStatus(null).newStatus(OrderStatus.PENDING)
+                .reason("Pedido creado").changedAt(t1).traceId("trace-a").build();
+        OrderHistory h2 = OrderHistory.builder()
+                .orderId(orderId).previousStatus(OrderStatus.PENDING).newStatus(OrderStatus.CONFIRMED)
+                .reason("Stock disponible").changedAt(t2).traceId("trace-b").build();
+        when(historyRepository.findByOrderIdOrderByChangedAtAsc(orderId)).thenReturn(List.of(h1, h2));
+
+        StepVerifier.create(orderService.getHistory(orderId))
+                .expectNextMatches(r -> r.newStatus() == OrderStatus.PENDING && r.previousStatus() == null)
+                .expectNextMatches(r -> r.newStatus() == OrderStatus.CONFIRMED && r.previousStatus() == OrderStatus.PENDING)
+                .verifyComplete();
+
+        verify(historyRepository, times(1)).findByOrderIdOrderByChangedAtAsc(orderId);
+    }
+
+    @Test
+    void getHistory_deberiaLanzarExcepcionCuandoElPedidoNoExiste() {
+        when(orderRepository.findById(orderId)).thenReturn(Optional.empty());
+
+        StepVerifier.create(orderService.getHistory(orderId))
+                .expectError(OrderNotFoundException.class)
+                .verify();
+
+        verify(historyRepository, never()).findByOrderIdOrderByChangedAtAsc(any());
     }
 }
