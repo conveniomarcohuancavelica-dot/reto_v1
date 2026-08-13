@@ -1,0 +1,157 @@
+{
+  "info": {
+    "name": "Reto Backend - API Gateway + Microservicios + OAuth2",
+    "description": "Flujo completo: login -> crear pedido -> consultar -> historial -> cancelar. Todo pasa por el API Gateway (único punto público).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8443" },
+    { "key": "accessToken", "value": "" },
+    { "key": "orderId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Login (obtener JWT)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.collectionVariables.set('accessToken', json.accessToken);",
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Token presente', () => pm.expect(json.accessToken).to.not.be.empty);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"client\",\n  \"password\": \"client123\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] }
+      }
+    },
+    {
+      "name": "2. Consultar disponibilidad de inventario",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/inventory/availability?productId=PROD-001",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "inventory", "availability"],
+          "query": [{ "key": "productId", "value": "PROD-001" }]
+        }
+      }
+    },
+    {
+      "name": "3. Crear pedido (con stock)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.collectionVariables.set('orderId', json.orderId);",
+              "pm.test('Status 201', () => pm.response.to.have.status(201));",
+              "pm.test('X-Trace-Id presente en respuesta', () => pm.response.headers.has('X-Trace-Id'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerId\": \"CUST-001\",\n  \"productId\": \"PROD-001\",\n  \"quantity\": 2\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/v1/orders", "host": ["{{baseUrl}}"], "path": ["api", "v1", "orders"] }
+      }
+    },
+    {
+      "name": "4. Crear pedido (sin stock - PROD-003)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerId\": \"CUST-001\",\n  \"productId\": \"PROD-003\",\n  \"quantity\": 1\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/v1/orders", "host": ["{{baseUrl}}"], "path": ["api", "v1", "orders"] }
+      }
+    },
+    {
+      "name": "5. Consultar estado del pedido",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "orders", "{{orderId}}"]
+        }
+      }
+    },
+    {
+      "name": "6. Consultar historial del pedido",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}/history",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "orders", "{{orderId}}", "history"]
+        }
+      }
+    },
+    {
+      "name": "7. Cancelar pedido",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}/cancel",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "orders", "{{orderId}}", "cancel"]
+        }
+      }
+    },
+    {
+      "name": "8. Cancelar de nuevo (debe fallar - transición inválida)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}/cancel",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "orders", "{{orderId}}", "cancel"]
+        }
+      }
+    },
+    {
+      "name": "9. Request sin token (debe dar 401)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "orders", "{{orderId}}"]
+        }
+      }
+    }
+  ]
+}

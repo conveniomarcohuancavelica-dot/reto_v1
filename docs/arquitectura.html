@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reto Backend — API Gateway + Microservicios + OAuth2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0F1A;
+    --surface:#111A2B;
+    --surface-2:#16213A;
+    --line:#243252;
+    --text:#E7ECF7;
+    --muted:#8C9AB8;
+    --teal:#45D6C4;
+    --amber:#F0A63C;
+    --rose:#EF6C6C;
+    --mono:'IBM Plex Mono', monospace;
+    --sans:'Inter', sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.6;
+    display:flex;
+    min-height:100vh;
+  }
+  ::selection{background:var(--teal); color:#06110F;}
+
+  /* ---------- Sidebar ---------- */
+  nav.side{
+    width:260px;
+    flex-shrink:0;
+    background:var(--surface);
+    border-right:1px solid var(--line);
+    padding:32px 24px;
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+  }
+  .brand{
+    font-family:var(--mono);
+    font-size:13px;
+    color:var(--teal);
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    margin-bottom:4px;
+  }
+  .brand-sub{
+    font-size:18px;
+    font-weight:700;
+    margin-bottom:28px;
+    line-height:1.3;
+  }
+  nav.side ul{list-style:none;}
+  nav.side li{margin-bottom:2px;}
+  nav.side a{
+    display:block;
+    color:var(--muted);
+    text-decoration:none;
+    font-size:14px;
+    padding:8px 10px;
+    border-radius:6px;
+    border-left:2px solid transparent;
+    transition:all .15s ease;
+  }
+  nav.side a:hover{color:var(--text); background:var(--surface-2);}
+  nav.side .grp{
+    font-family:var(--mono);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:#5A6786;
+    margin:20px 0 8px;
+  }
+
+  /* ---------- Main ---------- */
+  main{flex:1; max-width:920px; padding:56px 64px 120px; min-width:0;}
+  section{margin-bottom:72px; scroll-margin-top:32px;}
+  h1{
+    font-size:42px;
+    font-weight:800;
+    letter-spacing:-0.02em;
+    line-height:1.15;
+    margin-bottom:14px;
+  }
+  h1 span{color:var(--teal);}
+  .lede{
+    color:var(--muted);
+    font-size:17px;
+    max-width:640px;
+    margin-bottom:8px;
+  }
+  .badges{display:flex; gap:8px; flex-wrap:wrap; margin-top:22px;}
+  .badge{
+    font-family:var(--mono);
+    font-size:12px;
+    padding:5px 10px;
+    border:1px solid var(--line);
+    border-radius:20px;
+    color:var(--muted);
+  }
+  h2{
+    font-size:24px;
+    font-weight:700;
+    margin-bottom:6px;
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+  }
+  h2 .num{
+    font-family:var(--mono);
+    color:var(--teal);
+    font-size:15px;
+  }
+  .section-lede{color:var(--muted); margin-bottom:24px; max-width:680px;}
+  h3{font-size:16px; font-weight:600; margin:28px 0 10px;}
+  p{margin-bottom:14px; color:#C7CFE2;}
+  code{
+    font-family:var(--mono);
+    background:var(--surface-2);
+    border:1px solid var(--line);
+    padding:2px 6px;
+    border-radius:4px;
+    font-size:0.88em;
+    color:var(--teal);
+  }
+  pre{
+    font-family:var(--mono);
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px 20px;
+    overflow-x:auto;
+    font-size:13.5px;
+    line-height:1.7;
+    color:#C7CFE2;
+    margin:16px 0;
+  }
+  pre .k{color:var(--teal);}
+  pre .s{color:var(--amber);}
+  pre .c{color:#5A6786;}
+
+  /* ---------- Diagram ---------- */
+  .diagram{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:32px;
+    margin:24px 0;
+  }
+  .flow{
+    display:flex;
+    align-items:center;
+    gap:0;
+    flex-wrap:wrap;
+  }
+  .node{
+    font-family:var(--mono);
+    font-size:13px;
+    text-align:center;
+    padding:14px 18px;
+    border-radius:10px;
+    border:1.5px solid var(--line);
+    background:var(--surface-2);
+    min-width:120px;
+  }
+  .node .title{font-weight:700; color:var(--text); margin-bottom:4px; font-size:14px;}
+  .node .sub{color:var(--muted); font-size:11px;}
+  .node.public{border-color:var(--teal); box-shadow:0 0 0 1px rgba(69,214,196,.15);}
+  .node.public .title{color:var(--teal);}
+  .node.auth{border-color:var(--amber);}
+  .node.auth .title{color:var(--amber);}
+  .arrow{
+    color:var(--muted);
+    font-family:var(--mono);
+    font-size:20px;
+    padding:0 14px;
+  }
+  .arrow-label{
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--muted);
+    text-align:center;
+    margin-top:4px;
+  }
+
+  /* ---------- Tables ---------- */
+  table{width:100%; border-collapse:collapse; margin:16px 0 8px; font-size:14px;}
+  th{
+    text-align:left;
+    font-family:var(--mono);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    color:var(--muted);
+    padding:10px 14px;
+    border-bottom:1px solid var(--line);
+  }
+  td{
+    padding:12px 14px;
+    border-bottom:1px solid var(--line);
+    color:#C7CFE2;
+    vertical-align:top;
+  }
+  td code{white-space:nowrap;}
+  tr:last-child td{border-bottom:none;}
+  .method{
+    font-family:var(--mono);
+    font-weight:700;
+    font-size:11px;
+    padding:3px 8px;
+    border-radius:5px;
+  }
+  .method.get{background:rgba(69,214,196,.12); color:var(--teal);}
+  .method.post{background:rgba(240,166,60,.14); color:var(--amber);}
+  .auth-yes{color:var(--teal); font-family:var(--mono); font-size:12px;}
+  .auth-no{color:var(--rose); font-family:var(--mono); font-size:12px;}
+
+  /* ---------- State machine ---------- */
+  .states{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:20px 0;}
+  .state-pill{
+    font-family:var(--mono);
+    font-size:13px;
+    font-weight:600;
+    padding:9px 16px;
+    border-radius:8px;
+    border:1.5px solid var(--line);
+  }
+  .state-pill.pending{color:var(--amber); border-color:var(--amber);}
+  .state-pill.confirmed{color:var(--teal); border-color:var(--teal);}
+  .state-pill.cancelled{color:var(--muted); border-color:var(--line);}
+  .state-pill.failed{color:var(--rose); border-color:var(--rose);}
+  .state-arrow{color:#5A6786; font-family:var(--mono);}
+
+  /* ---------- Cards / grid ---------- */
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:20px 0;}
+  .card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px 22px;
+  }
+  .card .h{font-family:var(--mono); font-size:12px; color:var(--teal); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px;}
+  .card p{margin:0; font-size:13.5px; color:var(--muted);}
+
+  .callout{
+    border-left:3px solid var(--amber);
+    background:rgba(240,166,60,.06);
+    padding:14px 18px;
+    border-radius:0 8px 8px 0;
+    margin:18px 0;
+    font-size:14px;
+    color:#D9C6A8;
+  }
+  .callout.teal{border-color:var(--teal); background:rgba(69,214,196,.06); color:#B8E6DE;}
+
+  ul.check{list-style:none; margin:14px 0;}
+  ul.check li{
+    padding-left:24px;
+    position:relative;
+    margin-bottom:8px;
+    color:#C7CFE2;
+    font-size:14.5px;
+  }
+  ul.check li::before{
+    content:"✓";
+    position:absolute;
+    left:0;
+    color:var(--teal);
+    font-weight:700;
+  }
+
+  footer{
+    max-width:920px;
+    padding:0 64px 64px;
+    color:#5A6786;
+    font-family:var(--mono);
+    font-size:12px;
+  }
+
+  @media (max-width:860px){
+    nav.side{display:none;}
+    main{padding:40px 24px 80px;}
+    .grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<nav class="side">
+  <div class="brand">Reto Técnico · Back End</div>
+  <div class="brand-sub">API Gateway + Microservicios + OAuth 2.0</div>
+  <ul>
+    <li class="grp">Arquitectura</li>
+    <li><a href="#overview">Visión general</a></li>
+    <li><a href="#diagrama">Diagrama de componentes</a></li>
+    <li><a href="#decisiones">Decisiones técnicas</a></li>
+    <li class="grp">Dominio</li>
+    <li><a href="#estados">Estados del pedido</a></li>
+    <li><a href="#flujo">Flujo de creación</a></li>
+    <li class="grp">API</li>
+    <li><a href="#endpoints">Endpoints</a></li>
+    <li><a href="#errores">Formato de error</a></li>
+    <li><a href="#trazabilidad">Trazabilidad</a></li>
+    <li class="grp">Operación</li>
+    <li><a href="#seguridad">Seguridad</a></li>
+    <li><a href="#ejecutar">Cómo ejecutar</a></li>
+    <li><a href="#tests">Testing</a></li>
+  </ul>
+</nav>
+
+<main>
+
+  <section id="overview">
+    <h1>API Gateway + <span>Microservicios</span> + OAuth 2.0</h1>
+    <p class="lede">Documentación de arquitectura para el reto técnico: registro y consulta de pedidos a través de un API Gateway único, con dos microservicios independientes, autenticación JWT y trazabilidad end-to-end.</p>
+    <div class="badges">
+      <span class="badge">Java 17</span>
+      <span class="badge">Spring Boot 3.3</span>
+      <span class="badge">WebFlux</span>
+      <span class="badge">Spring Cloud Gateway</span>
+      <span class="badge">JWT · HS256</span>
+      <span class="badge">MySQL 8</span>
+      <span class="badge">Docker Compose</span>
+    </div>
+  </section>
+
+  <section id="diagrama">
+    <h2><span class="num">01</span> Diagrama de componentes</h2>
+    <p class="section-lede">El API Gateway es el único punto público. Todo lo demás vive detrás de la red interna de Docker.</p>
+
+    <div class="diagram">
+      <div class="flow">
+        <div class="node"><div class="title">Postman</div><div class="sub">Cliente API</div></div>
+        <div class="arrow">→</div>
+        <div class="node public"><div class="title">API Gateway</div><div class="sub">:8443 · JWT + X-Trace-Id</div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="title">Order Service</div><div class="sub">:8081 · pedidos + historial</div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="title">Inventory Service</div><div class="sub">:8082 · stock</div></div>
+      </div>
+      <div style="margin-top:18px; display:flex; align-items:center; gap:0;">
+        <div class="node auth"><div class="title">Auth Service</div><div class="sub">:9000 · emite JWT (HS256)</div></div>
+        <div class="arrow">⇢</div>
+        <div style="font-family:var(--mono); font-size:12px; color:var(--muted);">valida el token con la misma clave secreta compartida en Gateway, Order y Inventory</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="h">API Gateway</div>
+        <p>Único punto público. Valida JWT, enruta por path y propaga <code>X-Trace-Id</code>. Sin lógica de negocio ni composición de respuestas (no es un BFF).</p>
+      </div>
+      <div class="card">
+        <div class="h">Order Service</div>
+        <p>Dueño de pedidos, estados e historial. Llama a Inventory Service vía WebClient (HTTP reactivo, no bloqueante).</p>
+      </div>
+      <div class="card">
+        <div class="h">Inventory Service</div>
+        <p>Dueño de productos, stock y disponibilidad. Persistencia independiente, sin conocer a Order Service.</p>
+      </div>
+      <div class="card">
+        <div class="h">Auth Service</div>
+        <p>Emisor de JWT (HS256). Reemplaza a un Identity Provider externo tipo Keycloak, manteniendo el mismo estándar OAuth2/JWT.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="decisiones">
+    <h2><span class="num">02</span> Decisiones técnicas</h2>
+    <p class="section-lede">Justificación breve de cada decisión, lista para defender en la revisión técnica.</p>
+
+    <h3>Auth Service propio (no Keycloak)</h3>
+    <p>Mismo estándar OAuth2/JWT, pero con control total del ciclo de vida del token: emisión, claims, expiración y validación, sin depender de un componente externo adicional para el alcance de este reto.</p>
+
+    <h3>MySQL, una base por microservicio</h3>
+    <p>Motor relacional estable con integridad transaccional, adecuado para persistir pedidos, historial e inventario. Cada microservicio es dueño exclusivo de su esquema — <code>orderdb</code> y <code>inventorydb</code> nunca se comparten.</p>
+
+    <h3>WebClient reactivo en vez de RestTemplate</h3>
+    <p>El reto pide explícitamente comunicación síncrona vía HTTP reactivo. WebClient es no bloqueante y es el cliente estándar en un stack WebFlux.</p>
+
+    <h3>JPA (bloqueante) envuelto en Mono.fromCallable + boundedElastic</h3>
+    <p>R2DBC para MySQL no tiene el mismo nivel de madurez que JPA. Las operaciones de persistencia bloqueantes se ejecutan en un scheduler dedicado (<code>Schedulers.boundedElastic()</code>) para no bloquear el event loop de Netty.</p>
+
+    <div class="callout">Fuera de alcance a propósito: Saga Orchestrator, Kafka, Outbox, Event Sourcing, CQRS, Kubernetes y Dispatch Service. El flujo es síncrono y de bajo acoplamiento distribuido — Order Service solo depende de Inventory Service en el instante de crear el pedido, así que no se requiere consistencia eventual entre servicios.</div>
+  </section>
+
+  <section id="estados">
+    <h2><span class="num">03</span> Estados del pedido</h2>
+    <p class="section-lede">Las transiciones válidas están centralizadas en el enum <code>OrderStatus</code> (principio de responsabilidad única) — no hay "ifs" de reglas de negocio esparcidos por el código.</p>
+
+    <div class="states">
+      <span class="state-pill pending">PENDING</span>
+      <span class="state-arrow">──→</span>
+      <span class="state-pill confirmed">CONFIRMED</span>
+      <span class="state-arrow">──→</span>
+      <span class="state-pill cancelled">CANCELLED</span>
+    </div>
+    <div class="states">
+      <span class="state-pill pending">PENDING</span>
+      <span class="state-arrow">──→</span>
+      <span class="state-pill failed">FAILED</span>
+      <span class="state-arrow" style="opacity:0">──→</span>
+      <span style="font-family:var(--mono); font-size:12px; color:var(--muted);">sin stock (opcional, estado terminal)</span>
+    </div>
+
+    <ul class="check">
+      <li><strong>PENDING</strong> — recién creado, aún no confirmado.</li>
+      <li><strong>CONFIRMED</strong> — hay stock, se confirmó y se reservó.</li>
+      <li><strong>CANCELLED</strong> — cancelado desde PENDING o CONFIRMED únicamente.</li>
+      <li><strong>FAILED</strong> — no se pudo confirmar por falta de stock.</li>
+    </ul>
+
+    <p>Cualquier transición fuera de este grafo (ej. cancelar un pedido ya <code>CANCELLED</code>) se rechaza con <code>409 INVALID_TRANSITION</code>, evitando cancelaciones duplicadas.</p>
+  </section>
+
+  <section id="flujo">
+    <h2><span class="num">04</span> Flujo de creación de un pedido</h2>
+    <pre><span class="c">1.</span> POST /api/v1/orders           <span class="c">→ se persiste en PENDING</span>
+<span class="c">2.</span> Order Service consulta stock  <span class="c">→ GET /api/v1/inventory/availability (WebClient)</span>
+<span class="c">3a.</span> Hay stock                   <span class="c">→ se reserva stock → estado CONFIRMED</span>
+<span class="c">3b.</span> No hay stock                <span class="c">→ error controlado → estado FAILED</span>
+<span class="c">4.</span> Cada transición                <span class="c">→ se registra en order_history con su X-Trace-Id</span></pre>
+  </section>
+
+  <section id="endpoints">
+    <h2><span class="num">05</span> Endpoints</h2>
+    <p class="section-lede">Todos se consumen a través del API Gateway, puerto <code>8443</code>.</p>
+    <table>
+      <thead>
+        <tr><th>Método</th><th>Ruta</th><th>Descripción</th><th>Auth</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="method post">POST</span></td><td><code>/api/v1/auth/login</code></td><td>Login, devuelve JWT</td><td><span class="auth-no">No</span></td></tr>
+        <tr><td><span class="method post">POST</span></td><td><code>/api/v1/orders</code></td><td>Crear pedido</td><td><span class="auth-yes">Sí</span></td></tr>
+        <tr><td><span class="method get">GET</span></td><td><code>/api/v1/orders/{orderId}</code></td><td>Consultar estado</td><td><span class="auth-yes">Sí</span></td></tr>
+        <tr><td><span class="method post">POST</span></td><td><code>/api/v1/orders/{orderId}/cancel</code></td><td>Cancelar pedido</td><td><span class="auth-yes">Sí</span></td></tr>
+        <tr><td><span class="method get">GET</span></td><td><code>/api/v1/orders/{orderId}/history</code></td><td>Historial de cambios</td><td><span class="auth-yes">Sí</span></td></tr>
+        <tr><td><span class="method get">GET</span></td><td><code>/api/v1/inventory/availability</code></td><td>Disponibilidad de un producto</td><td><span class="auth-yes">Sí</span></td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:13px; color:var(--muted);">Usuarios de prueba: <code>client / client123</code> · <code>admin / admin123</code></p>
+  </section>
+
+  <section id="errores">
+    <h2><span class="num">06</span> Formato de error estándar</h2>
+    <p class="section-lede">Toda excepción de negocio, en cualquier servicio, se traduce a esta misma forma.</p>
+    <pre>{
+  <span class="k">"timestamp"</span>: <span class="s">"2026-08-12T10:00:00Z"</span>,
+  <span class="k">"status"</span>: 409,
+  <span class="k">"code"</span>: <span class="s">"STOCK_INSUFFICIENT"</span>,
+  <span class="k">"message"</span>: <span class="s">"Stock insuficiente para el producto: PROD-003"</span>,
+  <span class="k">"traceId"</span>: <span class="s">"a1b2c3d4-e5f6-..."</span>
+}</pre>
+    <table>
+      <thead><tr><th>Código</th><th>Status</th><th>Cuándo ocurre</th></tr></thead>
+      <tbody>
+        <tr><td><code>ORDER_NOT_FOUND</code></td><td>404</td><td>El pedido no existe</td></tr>
+        <tr><td><code>INVALID_DATA</code></td><td>400</td><td>Payload inválido</td></tr>
+        <tr><td><code>STOCK_INSUFFICIENT</code></td><td>409</td><td>No hay stock suficiente</td></tr>
+        <tr><td><code>INVALID_TRANSITION</code></td><td>409</td><td>Transición de estado no permitida</td></tr>
+        <tr><td><code>UNAUTHORIZED_TOKEN_INVALID</code></td><td>401</td><td>Token inválido o expirado</td></tr>
+        <tr><td><code>INTERNAL_ERROR</code></td><td>500</td><td>Error inesperado</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="trazabilidad">
+    <h2><span class="num">07</span> Trazabilidad · X-Trace-Id</h2>
+    <ul class="check">
+      <li>El Gateway genera un <code>X-Trace-Id</code> si el cliente no lo envía, o respeta el recibido.</li>
+      <li>Se propaga como header hacia Order Service e Inventory Service en cada llamada saliente.</li>
+      <li>Se agrega al MDC de Logback → aparece en cada línea de log de los tres servicios.</li>
+      <li>Se incluye en toda respuesta, tanto de éxito como de error.</li>
+    </ul>
+  </section>
+
+  <section id="seguridad">
+    <h2><span class="num">08</span> Seguridad</h2>
+    <p>El Gateway valida el JWT como Resource Server antes de enrutar. Order Service e Inventory Service <strong>vuelven a validar el mismo token de forma independiente</strong> (defensa en profundidad): cada servicio es seguro por sí mismo y testeable en aislamiento, sin depender ciegamente de la red interna.</p>
+    <p>Los tres validan con la misma clave secreta (HS256) que usa Auth Service para firmar, vía <code>NimbusReactiveJwtDecoder.withSecretKey(...)</code>.</p>
+  </section>
+
+  <section id="ejecutar">
+    <h2><span class="num">09</span> Cómo ejecutar</h2>
+    <pre>docker compose up --build</pre>
+    <table>
+      <thead><tr><th>Servicio</th><th>Puerto</th></tr></thead>
+      <tbody>
+        <tr><td>API Gateway (único público)</td><td><code>8443</code></td></tr>
+        <tr><td>Auth Service</td><td><code>9000</code></td></tr>
+        <tr><td>Order Service</td><td><code>8081</code></td></tr>
+        <tr><td>Inventory Service</td><td><code>8082</code></td></tr>
+        <tr><td>MySQL order / inventory</td><td><code>3306</code> / <code>3307</code></td></tr>
+      </tbody>
+    </table>
+    <div class="callout teal">Importa <code>postman/Reto-Backend.postman_collection.json</code>: login guarda el token automáticamente y lo reutiliza en el resto de requests.</div>
+  </section>
+
+  <section id="tests">
+    <h2><span class="num">10</span> Testing</h2>
+    <p>JUnit 5 + Mockito + StepVerifier (Reactor Test) en Order Service e Inventory Service. Casos cubiertos: creación con stock suficiente/insuficiente, transición inválida (doble cancelación), pedido inexistente y reserva de stock.</p>
+    <pre>cd order-service && mvn test
+cd inventory-service && mvn test</pre>
+  </section>
+
+</main>
+
+<footer>Reto Backend · API Gateway + Microservicios + OAuth 2.0 — documentación de arquitectura</footer>
+
+</body>
+</html>

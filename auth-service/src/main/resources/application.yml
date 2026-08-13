@@ -1,0 +1,18 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: auth-service
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:MiClaveSecretaSuperSeguraParaElRetoTecnico2026ChangeMe}
+    expiration-seconds: 3600
+    issuer: auth-service
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  level:
+    com.reto.auth: INFO
