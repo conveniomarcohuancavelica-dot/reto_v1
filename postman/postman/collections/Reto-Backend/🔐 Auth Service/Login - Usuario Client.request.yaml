@@ -1,0 +1,24 @@
+$kind: http-request
+name: 'Login - Usuario Client'
+method: POST
+url: '{{baseUrl}}/api/v1/auth/login'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "username": "client",
+      "password": "client123"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const json = pm.response.json();
+      pm.collectionVariables.set('accessToken', json.accessToken);
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      pm.test('Token presente', () => pm.expect(json.accessToken).to.not.be.empty);
+      pm.test('Tipo Bearer', () => pm.expect(json.tokenType).to.equal('Bearer'));

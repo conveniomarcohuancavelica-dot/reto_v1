@@ -1,0 +1,13 @@
+$kind: http-request
+name: 'Cancelar Orden de Nuevo (transición inválida)'
+method: POST
+url: '{{baseUrl}}/api/v1/orders/{{orderId}}/cancel'
+order: 6000
+headers:
+  - key: Authorization
+    value: 'Bearer {{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status 409 (transición inválida)', () => pm.response.to.have.status(409));

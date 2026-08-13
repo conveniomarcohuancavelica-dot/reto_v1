@@ -1,0 +1,54 @@
+name: Reto Backend - Local
+values:
+  - key: baseUrl
+    value: 'http://localhost:8443'
+    enabled: true
+    type: default
+  - key: authServiceUrl
+    value: 'http://localhost:9000'
+    enabled: true
+    type: default
+  - key: orderServiceUrl
+    value: 'http://localhost:8081'
+    enabled: true
+    type: default
+  - key: inventoryServiceUrl
+    value: 'http://localhost:8082'
+    enabled: true
+    type: default
+  - key: accessToken
+    value: ''
+    enabled: true
+    type: secret
+  - key: orderId
+    value: ''
+    enabled: true
+    type: default
+  - key: clientUsername
+    value: client
+    enabled: true
+    type: default
+  - key: clientPassword
+    value: client123
+    enabled: true
+    type: secret
+  - key: adminUsername
+    value: admin
+    enabled: true
+    type: default
+  - key: adminPassword
+    value: admin123
+    enabled: true
+    type: secret
+  - key: testProductId
+    value: PROD-001
+    enabled: true
+    type: default
+  - key: testProductNoStock
+    value: PROD-003
+    enabled: true
+    type: default
+  - key: testCustomerId
+    value: CUST-001
+    enabled: true
+    type: default

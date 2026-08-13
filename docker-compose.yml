@@ -26,7 +26,10 @@ services:
     networks:
       - reto-net
     ports:
-      - "3306:3306"
+      # Host 3316 -> Contenedor 3306: se evita a propósito el puerto por
+      # defecto en el host (3306), muy probablemente ocupado por una
+      # instalación local de MySQL/XAMPP/WAMP en la máquina del desarrollador.
+      - "3316:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_pass"]
       interval: 5s
@@ -49,7 +52,9 @@ services:
     networks:
       - reto-net
     ports:
-      - "3307:3306"
+      # Host 3317 -> Contenedor 3306: mismo motivo que mysql-order, y
+      # distinto del 3316 de arriba para que ambos convivan sin choque.
+      - "3317:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_pass"]
       interval: 5s
@@ -69,6 +74,12 @@ services:
       - reto-net
     ports:
       - "9000:9000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9000/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
 
   # ---------------------------------------------------------------------
   # Inventory Service
@@ -88,6 +99,12 @@ services:
       - reto-net
     ports:
       - "8082:8082"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 25s
 
   # ---------------------------------------------------------------------
   # Order Service
@@ -104,12 +121,22 @@ services:
     depends_on:
       mysql-order:
         condition: service_healthy
+      # Antes era "service_started" (solo esperaba a que el contenedor
+      # arrancara, no a que Spring terminara de inicializar). Con el
+      # Actuator agregado en inventory-service, ahora sí podemos esperar a
+      # que esté realmente listo antes de levantar order-service.
       inventory-service:
-        condition: service_started
+        condition: service_healthy
     networks:
       - reto-net
     ports:
       - "8081:8081"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 25s
 
   # ---------------------------------------------------------------------
   # API Gateway (único punto público del sistema)
@@ -123,10 +150,24 @@ services:
       ORDER_SERVICE_URI: http://order-service:8081
       INVENTORY_SERVICE_URI: http://inventory-service:8082
     depends_on:
-      - auth-service
-      - order-service
-      - inventory-service
+      # Antes el Gateway solo esperaba a que los 3 contenedores arrancaran
+      # (service_started), no a que sus apps de Spring estuvieran
+      # realmente listas para recibir tráfico. Como los 4 servicios Java
+      # ahora exponen /actuator/health, el Gateway espera hasta que estén
+      # sanos de verdad antes de empezar a enrutar.
+      auth-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
     networks:
       - reto-net
     ports:
       - "8443:8443"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8443/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 25s

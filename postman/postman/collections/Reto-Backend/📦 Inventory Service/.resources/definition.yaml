@@ -1,0 +1,3 @@
+$kind: collection
+name: '📦 Inventory Service'
+description: 'Consulta de disponibilidad y reserva de stock. Productos: PROD-001 (Laptop, stock 15), PROD-002 (Mouse, stock 50), PROD-003 (Teclado, stock 0)'

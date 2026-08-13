@@ -1,0 +1,3 @@
+$kind: collection
+name: '🔐 Auth Service'
+description: 'Autenticación JWT. Usuarios de prueba: client/client123 (rol CLIENT), admin/admin123 (rol ADMIN)'

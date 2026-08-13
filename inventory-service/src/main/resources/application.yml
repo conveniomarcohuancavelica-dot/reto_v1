@@ -5,7 +5,7 @@ spring:
   application:
     name: inventory-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3307/inventorydb?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3317/inventorydb?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true}
     username: ${SPRING_DATASOURCE_USERNAME:inventory_user}
     password: ${SPRING_DATASOURCE_PASSWORD:inventory_pass}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -18,6 +18,13 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        # Sin esto, Hibernate 6 mapea los campos "UUID id" como BINARY(16)
+        # por defecto en MySQL. data.sql inserta con la función UUID() de
+        # MySQL, que devuelve un string de 36 caracteres — eso rompe contra
+        # una columna BINARY(16) (se trunca/corrompe). Forzamos CHAR(36)
+        # para que el tipo de columna sea consistente con lo que se inserta.
+        type:
+          preferred_uuid_jdbc_type: CHAR
   sql:
     init:
       mode: always

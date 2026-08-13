@@ -1,0 +1,10 @@
+$kind: http-request
+name: 'Request sin Token (debe dar 401)'
+method: GET
+url: '{{baseUrl}}/api/v1/orders/{{orderId}}'
+order: 1000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status 401 sin token', () => pm.response.to.have.status(401));

@@ -1,0 +1,28 @@
+$kind: http-request
+name: 'Crear Orden - Con Stock (PROD-001)'
+method: POST
+url: '{{baseUrl}}/api/v1/orders'
+order: 1000
+headers:
+  - key: Authorization
+    value: 'Bearer {{accessToken}}'
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "customerId": "CUST-001",
+      "productId": "PROD-001",
+      "quantity": 2
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const json = pm.response.json();
+      pm.collectionVariables.set('orderId', json.orderId);
+      pm.test('Status 201', () => pm.response.to.have.status(201));
+      pm.test('X-Trace-Id presente', () => pm.response.headers.has('X-Trace-Id'));
+      pm.test('orderId guardado', () => pm.expect(json.orderId).to.not.be.empty);
+      pm.test('Estado PENDING', () => pm.expect(json.status).to.equal('PENDING'));

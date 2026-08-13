@@ -285,10 +285,50 @@
     font-size:12px;
   }
 
+  .callout.rose{border-color:var(--rose); background:rgba(239,108,108,.06); color:#F0C6C6;}
+
+  /* ---------- Fix cards (auditoría) ---------- */
+  .fix{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px 22px;
+    margin:16px 0;
+  }
+  .fix .fix-head{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .fix .fix-num{
+    font-family:var(--mono);
+    font-size:11px;
+    color:#06110F;
+    background:var(--teal);
+    width:22px; height:22px;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    font-weight:700;
+  }
+  .fix .fix-title{font-weight:700; font-size:15px;}
+  .fix-tag{
+    font-family:var(--mono);
+    font-size:10.5px;
+    padding:2px 8px;
+    border-radius:20px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+  .fix-tag.bug{color:var(--rose); border:1px solid var(--rose);}
+  .fix-tag.hardening{color:var(--amber); border:1px solid var(--amber);}
+  .fix-tag.cleanup{color:var(--muted); border:1px solid var(--line);}
+  .fix-row{display:grid; grid-template-columns:auto 1fr; gap:6px 12px; font-size:13.5px; margin-top:8px;}
+  .fix-row .lbl{font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#5A6786; padding-top:2px;}
+  .fix-row .antes{color:#F0C6C6;}
+  .fix-row .despues{color:#B8E6DE;}
+
   @media (max-width:860px){
     nav.side{display:none;}
     main{padding:40px 24px 80px;}
     .grid{grid-template-columns:1fr;}
+    .fix-row{grid-template-columns:1fr;}
   }
 </style>
 </head>
@@ -313,6 +353,8 @@
     <li><a href="#seguridad">Seguridad</a></li>
     <li><a href="#ejecutar">Cómo ejecutar</a></li>
     <li><a href="#tests">Testing</a></li>
+    <li class="grp">Historial</li>
+    <li><a href="#auditoria">Auditoría · 12 ago 2026</a></li>
   </ul>
 </nav>
 
@@ -498,7 +540,8 @@
         <tr><td>Auth Service</td><td><code>9000</code></td></tr>
         <tr><td>Order Service</td><td><code>8081</code></td></tr>
         <tr><td>Inventory Service</td><td><code>8082</code></td></tr>
-        <tr><td>MySQL order / inventory</td><td><code>3306</code> / <code>3307</code></td></tr>
+        <tr><td>MySQL order / inventory</td><td><code>3316</code> / <code>3317</code> <span style="color:var(--muted); font-size:12px;">(host — se evita 3306 por defecto)</span></td></tr>
+        <tr><td>Actuator (health)</td><td><code>/actuator/health</code> en cada servicio Java</td></tr>
       </tbody>
     </table>
     <div class="callout teal">Importa <code>postman/Reto-Backend.postman_collection.json</code>: login guarda el token automáticamente y lo reutiliza en el resto de requests.</div>
@@ -509,6 +552,147 @@
     <p>JUnit 5 + Mockito + StepVerifier (Reactor Test) en Order Service e Inventory Service. Casos cubiertos: creación con stock suficiente/insuficiente, transición inválida (doble cancelación), pedido inexistente y reserva de stock.</p>
     <pre>cd order-service && mvn test
 cd inventory-service && mvn test</pre>
+  </section>
+
+  <section id="auditoria">
+    <h2><span class="num">11</span> Auditoría y correcciones · 12 ago 2026</h2>
+    <p class="section-lede">Revisión completa de funcionalidad, uso de Lombok, dependencias no usadas y dockerización. Se verificó cada endpoint de la colección Postman contra el código, y se compiló cada archivo con <code>javac</code> real para descartar errores de sintaxis.</p>
+
+    <div class="callout rose">
+      <strong>Nota de proceso:</strong> una revisión anterior había reportado varios de estos mismos hallazgos y dijo haberlos corregido, pero los cambios nunca quedaron guardados en el proyecto entregado. Esta auditoría partió de cero y verificó cada corrección directamente en el código antes de darla por hecha.
+    </div>
+
+    <div class="fix">
+      <div class="fix-head">
+        <span class="fix-num">1</span>
+        <span class="fix-title">MapStruct declarado pero nunca usado</span>
+        <span class="fix-tag cleanup">Limpieza</span>
+      </div>
+      <p style="margin:0; color:var(--muted); font-size:13.5px;">Dependencia + <code>annotationProcessorPath</code> en <code>order-service</code> e <code>inventory-service</code>. El mapeo real siempre se hizo a mano con <code>toResponse()</code> — ningún archivo tenía <code>@Mapper</code>.</p>
+      <div class="fix-row">
+        <span class="lbl">Corrección</span>
+        <span class="despues">Se quitó la dependencia y el processor de ambos <code>pom.xml</code>.</span>
+      </div>
+    </div>
+
+    <div class="fix">
+      <div class="fix-head">
+        <span class="fix-num">2</span>
+        <span class="fix-title"><code>@Transactional</code> inefectivo por auto-invocación</span>
+        <span class="fix-tag bug">Bug</span>
+      </div>
+      <p style="margin:0; color:var(--muted); font-size:13.5px;">En <code>OrderServiceImpl</code>, <code>saveHistory()</code> era un método <code>protected</code> anotado con <code>@Transactional</code> pero invocado como <code>this.saveHistory(...)</code> desde dentro de la misma clase. Spring AOP solo intercepta llamadas que pasan por el proxy — la auto-invocación nunca lo hace, así que la anotación no protegía nada.</p>
+      <div class="fix-row">
+        <span class="lbl">Antes</span>
+        <span class="antes">Guardado del pedido y del historial sin atomicidad real entre ambos.</span>
+        <span class="lbl">Corrección</span>
+        <span class="despues">Se extrajo a un bean nuevo, <code>OrderTransitionWriter</code>, inyectado normalmente — la llamada externa sí pasa por el proxy y ambos guardados quedan atómicos.</span>
+      </div>
+    </div>
+
+    <div class="fix">
+      <div class="fix-head">
+        <span class="fix-num">3</span>
+        <span class="fix-title"><code>@Transactional</code> inefectivo en WebFlux + JPA bloqueante</span>
+        <span class="fix-tag bug">Bug</span>
+      </div>
+      <p style="margin:0; color:var(--muted); font-size:13.5px;"><code>InventoryServiceImpl.reserveStock()</code> envolvía <code>Mono.fromCallable(...).subscribeOn(Schedulers.boundedElastic())</code> dentro de un método <code>@Transactional</code>. El método devuelve el <code>Mono</code> al instante (sin bloquear), así que Spring abre y cierra la transacción de forma síncrona <em>antes</em> de que el trabajo real se ejecute — en otro hilo, más tarde. La transacción quedaba vacía.</p>
+      <div class="fix-row">
+        <span class="lbl">Corrección</span>
+        <span class="despues">Se quitó la anotación. La atomicidad real la sigue dando el único <code>repository.save()</code> (transaccional por sí mismo en Spring Data JPA) combinado con bloqueo optimista vía <code>@Version</code>.</span>
+      </div>
+    </div>
+
+    <div class="fix">
+      <div class="fix-head">
+        <span class="fix-num">4</span>
+        <span class="fix-title">Actuator ausente pese a estar referenciado</span>
+        <span class="fix-tag bug">Bug</span>
+      </div>
+      <p style="margin:0; color:var(--muted); font-size:13.5px;"><code>SecurityConfig</code> permitía <code>/actuator/health/**</code> y <code>application.yml</code> tenía el bloque <code>management</code>, pero faltaba la dependencia <code>spring-boot-starter-actuator</code> en los tres servicios — el endpoint no existía en runtime.</p>
+      <div class="fix-row">
+        <span class="lbl">Corrección</span>
+        <span class="despues">Dependencia agregada en <code>auth-service</code>, <code>order-service</code> e <code>inventory-service</code>.</span>
+      </div>
+    </div>
+
+    <div class="fix">
+      <div class="fix-head">
+        <span class="fix-num">5</span>
+        <span class="fix-title">Healthchecks y arranque de Docker Compose</span>
+        <span class="fix-tag hardening">Hardening</span>
+      </div>
+      <p style="margin:0; color:var(--muted); font-size:13.5px;">Ninguno de los 4 servicios Java tenía <code>healthcheck</code>, así que <code>depends_on</code> solo esperaba a que el contenedor arrancara (<code>service_started</code>), no a que Spring terminara de inicializar — puede tardar 15–30s con Hibernate DDL y Spring Cloud Gateway.</p>
+      <div class="fix-row">
+        <span class="lbl">Corrección</span>
+        <span class="despues"><code>healthcheck</code> vía <code>/actuator/health</code> en los 4 servicios y <code>condition: service_healthy</code> en toda la cadena: <code>mysql → inventory-service → order-service → api-gateway</code>.</span>
+      </div>
+    </div>
+
+    <div class="fix">
+      <div class="fix-head">
+        <span class="fix-num">6</span>
+        <span class="fix-title">Puerto MySQL en riesgo de choque</span>
+        <span class="fix-tag hardening">Hardening</span>
+      </div>
+      <p style="margin:0; color:var(--muted); font-size:13.5px;"><code>mysql-order</code> exponía el 3306 del host — el puerto por defecto de casi cualquier instalación local de MySQL/XAMPP/WAMP.</p>
+      <div class="fix-row">
+        <span class="lbl">Corrección</span>
+        <span class="despues">Movido a <code>3316</code> (y <code>3317</code> para <code>mysql-inventory</code>). Los fallbacks en <code>application.yml</code> para correr fuera de Docker también se actualizaron.</span>
+      </div>
+    </div>
+
+    <div class="fix">
+      <div class="fix-head">
+        <span class="fix-num">7</span>
+        <span class="fix-title">Fuga de MDC en el API Gateway</span>
+        <span class="fix-tag bug">Bug</span>
+      </div>
+      <p style="margin:0; color:var(--muted); font-size:13.5px;"><code>TraceIdGlobalFilter</code> ponía el <code>traceId</code> en el MDC con <code>doOnEach(...)</code> pero nunca lo limpiaba. En el pool de hilos compartido de Netty (event loop), esto puede filtrar el <code>traceId</code> de una petición hacia los logs de otra petición concurrente que reutilice el mismo hilo.</p>
+      <div class="fix-row">
+        <span class="lbl">Corrección</span>
+        <span class="despues">Alineado al patrón que ya usaban <code>order-service</code>/<code>inventory-service</code>: <code>doFirst(() → MDC.put(...))</code> + <code>doFinally(() → MDC.remove(...))</code>.</span>
+      </div>
+    </div>
+
+    <div class="fix">
+      <div class="fix-head">
+        <span class="fix-num">8</span>
+        <span class="fix-title">Columna <code>id</code> con tipo inconsistente (BINARY vs texto)</span>
+        <span class="fix-tag bug">Bug</span>
+      </div>
+      <p style="margin:0; color:var(--muted); font-size:13.5px;">Los campos <code>@Id private UUID id;</code> con <code>GenerationType.UUID</code> mapean por defecto a <code>BINARY(16)</code> en Hibernate 6 + MySQL. Pero <code>data.sql</code> de <code>inventory-service</code> inserta con la función <code>UUID()</code> de MySQL, que devuelve un string de 36 caracteres — al chocar con una columna <code>BINARY(16)</code> el valor se trunca/corrompe. <code>ddl-auto: update</code> tampoco puede corregir el tipo de una columna ya creada en un volumen de Docker existente, por eso parecía necesario un <code>ALTER TABLE ... MODIFY COLUMN id VARCHAR(36)</code> manual.</p>
+      <div class="fix-row">
+        <span class="lbl">Corrección</span>
+        <span class="despues">Se fuerza <code>hibernate.type.preferred_uuid_jdbc_type: CHAR</code> en <code>order-service</code> e <code>inventory-service</code>, para que todos los <code>UUID</code> mapeen a <code>CHAR(36)</code> de forma consistente con lo que <code>data.sql</code> inserta.</span>
+        <span class="lbl">Importante</span>
+        <span class="antes">Esto NO corrige una columna ya creada con el tipo viejo en un volumen existente — hay que recrearlo: <code>docker compose down -v && docker compose up --build</code>.</span>
+      </div>
+    </div>
+
+    <div class="fix">
+      <div class="fix-head">
+        <span class="fix-num">9</span>
+        <span class="fix-title">Lombok limitado a lo estándar</span>
+        <span class="fix-tag hardening">Hardening</span>
+      </div>
+      <p style="margin:0; color:var(--muted); font-size:13.5px;">Las entidades ya usaban solo <code>@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder</code> — nunca <code>@Data</code>, <code>@Value</code>, <code>@EqualsAndHashCode</code> ni <code>@ToString</code>, que son las anotaciones que suelen chocar con JPA (recursión en relaciones, o romper el contrato de <code>equals</code> con proxies de Hibernate).</p>
+      <div class="fix-row">
+        <span class="lbl">Corrección</span>
+        <span class="despues">Se agregó <code>lombok.config</code> en la raíz del proyecto fijando esa disciplina para los 4 servicios (accessors estilo JavaBean, advertencia si alguien agrega <code>@Data</code>/<code>@Value</code> más adelante).</span>
+      </div>
+    </div>
+
+    <h3>Verificado y sin cambios (no eran bugs)</h3>
+    <ul class="check">
+      <li>Entidades JPA usan <code>@Getter @Setter @Builder</code> de Lombok — nunca <code>@Data</code>, que sería riesgoso en entidades por el <code>equals/hashCode/toString</code> autogenerado.</li>
+      <li>DTOs son <code>record</code> de Java, no Lombok — práctica moderna correcta.</li>
+      <li>Colección Postman verificada endpoint por endpoint contra controllers, DTOs y <code>SecurityConfig</code>: sin inconsistencias de campos, rutas ni headers.</li>
+    </ul>
+
+    <div class="callout teal">
+      <strong>Verificación de sintaxis:</strong> los 53 archivos <code>.java</code> compilan sin errores reales con <code>javac 21</code> (el entorno de auditoría no tiene acceso a <code>repo.maven.apache.org</code>, así que no reemplaza un <code>mvn test</code> real — se recomienda correr <code>docker compose up --build</code> para la validación final).
+    </div>
   </section>
 
 </main>

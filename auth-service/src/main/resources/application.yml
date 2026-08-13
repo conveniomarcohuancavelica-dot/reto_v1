@@ -11,6 +11,12 @@ security:
     expiration-seconds: 3600
     issuer: auth-service
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
 logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

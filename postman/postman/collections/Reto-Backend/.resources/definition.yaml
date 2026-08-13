@@ -1,0 +1,10 @@
+$kind: collection
+name: 'Reto Backend - API Gateway + Microservicios'
+description: 'Flujo completo de pruebas: Auth → Inventario → Órdenes. Todo pasa por el API Gateway (puerto 8443) como único punto público.'
+variables:
+  - key: baseUrl
+    value: 'http://localhost:8443'
+  - key: accessToken
+    value: ''
+  - key: orderId
+    value: ''

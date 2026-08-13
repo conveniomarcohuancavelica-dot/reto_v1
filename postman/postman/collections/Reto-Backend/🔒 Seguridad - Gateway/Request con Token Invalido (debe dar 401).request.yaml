@@ -1,0 +1,13 @@
+$kind: http-request
+name: 'Request con Token Inválido (debe dar 401)'
+method: GET
+url: '{{baseUrl}}/api/v1/orders/{{orderId}}'
+order: 2000
+headers:
+  - key: Authorization
+    value: 'Bearer token_invalido_123'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status 401 con token inválido', () => pm.response.to.have.status(401));

@@ -50,8 +50,9 @@ public class TraceIdGlobalFilter implements GlobalFilter, Ordered {
         ServerWebExchange mutatedExchange = exchange.mutate().request(mutatedRequest).build();
 
         return chain.filter(mutatedExchange)
-                .doOnEach(signal -> MDC.put(MDC_TRACE_ID_KEY, finalTraceId))
-                .contextWrite(reactor.util.context.Context.of(MDC_TRACE_ID_KEY, finalTraceId));
+                .contextWrite(reactor.util.context.Context.of(MDC_TRACE_ID_KEY, finalTraceId))
+                .doFirst(() -> MDC.put(MDC_TRACE_ID_KEY, finalTraceId))
+                .doFinally(signalType -> MDC.remove(MDC_TRACE_ID_KEY));
     }
 
     @Override

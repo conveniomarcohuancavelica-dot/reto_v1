@@ -1,0 +1,17 @@
+$kind: http-request
+name: 'Consultar Historial de Orden'
+method: GET
+url: '{{baseUrl}}/api/v1/orders/{{orderId}}/history'
+order: 4000
+headers:
+  - key: Authorization
+    value: 'Bearer {{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      pm.test('Historial no vacío', () => {
+        const json = pm.response.json();
+        pm.expect(json).to.be.an('array').that.is.not.empty;
+      });

@@ -1,0 +1,25 @@
+$kind: http-request
+name: 'Crear Orden - Sin Stock (PROD-003, debe fallar)'
+method: POST
+url: '{{baseUrl}}/api/v1/orders'
+order: 2000
+headers:
+  - key: Authorization
+    value: 'Bearer {{accessToken}}'
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "customerId": "CUST-001",
+      "productId": "PROD-003",
+      "quantity": 1
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status 409 o 422 (sin stock)', () => {
+        pm.expect(pm.response.code).to.be.oneOf([409, 422]);
+      });

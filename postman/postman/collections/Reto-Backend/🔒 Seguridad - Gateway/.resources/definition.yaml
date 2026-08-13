@@ -1,0 +1,3 @@
+$kind: collection
+name: '🔒 Seguridad - Gateway'
+description: 'Pruebas de seguridad del API Gateway: tokens inválidos, rutas no autorizadas'

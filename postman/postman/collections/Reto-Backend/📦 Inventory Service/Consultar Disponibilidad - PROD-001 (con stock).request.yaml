@@ -1,0 +1,21 @@
+$kind: http-request
+name: 'Consultar Disponibilidad - PROD-001 (con stock)'
+method: GET
+url: '{{baseUrl}}/api/v1/inventory/availability'
+order: 1000
+queryParams:
+  - key: productId
+    value: PROD-001
+headers:
+  - key: Authorization
+    value: 'Bearer {{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      pm.test('Tiene stock disponible', () => {
+        const json = pm.response.json();
+        pm.expect(json.available).to.be.true;
+        pm.expect(json.stock).to.be.above(0);
+      });

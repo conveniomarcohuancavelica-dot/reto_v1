@@ -1,0 +1,17 @@
+$kind: http-request
+name: 'Cancelar Orden'
+method: POST
+url: '{{baseUrl}}/api/v1/orders/{{orderId}}/cancel'
+order: 5000
+headers:
+  - key: Authorization
+    value: 'Bearer {{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      pm.test('Estado CANCELLED', () => {
+        const json = pm.response.json();
+        pm.expect(json.status).to.equal('CANCELLED');
+      });

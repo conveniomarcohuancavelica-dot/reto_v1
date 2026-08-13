@@ -5,7 +5,7 @@ spring:
   application:
     name: order-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/orderdb?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3316/orderdb?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true}
     username: ${SPRING_DATASOURCE_USERNAME:order_user}
     password: ${SPRING_DATASOURCE_PASSWORD:order_pass}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -17,6 +17,12 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        # Mismo motivo que en inventory-service: sin esto, Hibernate 6
+        # mapea "UUID id" a BINARY(16) por defecto en MySQL. Forzamos
+        # CHAR(36) para que las filas sean legibles como texto y quede
+        # consistente entre los dos microservicios.
+        type:
+          preferred_uuid_jdbc_type: CHAR
 
 security:
   jwt:

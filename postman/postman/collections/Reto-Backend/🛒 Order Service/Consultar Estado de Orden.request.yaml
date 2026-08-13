@@ -1,0 +1,17 @@
+$kind: http-request
+name: 'Consultar Estado de Orden'
+method: GET
+url: '{{baseUrl}}/api/v1/orders/{{orderId}}'
+order: 3000
+headers:
+  - key: Authorization
+    value: 'Bearer {{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      pm.test('orderId coincide', () => {
+        const json = pm.response.json();
+        pm.expect(json.orderId).to.equal(pm.collectionVariables.get('orderId'));
+      });

@@ -2,10 +2,8 @@ package com.reto.order.service;
 
 import com.reto.order.client.InventoryClient;
 import com.reto.order.domain.Order;
-import com.reto.order.domain.OrderHistory;
 import com.reto.order.domain.OrderStatus;
 import com.reto.order.dto.*;
-import com.reto.order.exception.InvalidOrderTransitionException;
 import com.reto.order.exception.OrderNotFoundException;
 import com.reto.order.exception.StockInsufficientException;
 import com.reto.order.repository.OrderHistoryRepository;
@@ -13,7 +11,6 @@ import com.reto.order.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -28,6 +25,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final OrderHistoryRepository historyRepository;
     private final InventoryClient inventoryClient;
+    private final OrderTransitionWriter transitionWriter;
 
     @Override
     public Mono<OrderResponse> createOrder(CreateOrderRequest request, String traceId) {
@@ -71,16 +69,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private Mono<Order> transitionAndSave(Order order, OrderStatus target, String reason, String traceId) {
-        return Mono.fromCallable(() -> {
-                    OrderStatus previous = order.getStatus();
-                    if (!previous.canTransitionTo(target)) {
-                        throw new InvalidOrderTransitionException(order.getId(), previous, target);
-                    }
-                    order.setStatus(target);
-                    Order saved = orderRepository.save(order);
-                    saveHistory(saved.getId(), previous, target, reason, traceId);
-                    return saved;
-                })
+        return Mono.fromCallable(() -> transitionWriter.transition(order, target, reason, traceId))
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
@@ -110,17 +99,6 @@ public class OrderServiceImpl implements OrderService {
         return Mono.fromCallable(() -> orderRepository.findById(orderId)
                         .orElseThrow(() -> new OrderNotFoundException(orderId)))
                 .subscribeOn(Schedulers.boundedElastic());
-    }
-
-    @Transactional
-    protected void saveHistory(UUID orderId, OrderStatus previous, OrderStatus target, String reason, String traceId) {
-        historyRepository.save(OrderHistory.builder()
-                .orderId(orderId)
-                .previousStatus(previous)
-                .newStatus(target)
-                .reason(reason)
-                .traceId(traceId)
-                .build());
     }
 
     private OrderResponse toResponse(Order order) {

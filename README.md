@@ -102,7 +102,9 @@ Servicios expuestos:
 - Auth Service: `http://localhost:9000` (accesible también vía Gateway en `/api/v1/auth/login`)
 - Order Service: `http://localhost:8081` (uso interno / debug)
 - Inventory Service: `http://localhost:8082` (uso interno / debug)
-- MySQL order: `localhost:3306` | MySQL inventory: `localhost:3307`
+- MySQL order: `localhost:3316` | MySQL inventory: `localhost:3317`
+  (se evita a propósito el puerto 3306 por defecto, para no chocar con una
+  instalación local de MySQL en tu máquina)
 
 ## Probar con Postman
 
@@ -129,3 +131,60 @@ cd auth-service && mvn test
 - Auth Service: `http://localhost:9000/swagger-ui.html`
 - Order Service: `http://localhost:8081/swagger-ui.html`
 - Inventory Service: `http://localhost:8082/swagger-ui.html`
+
+## Auditoría y correcciones aplicadas (12 ago 2026)
+
+Se hizo una revisión completa de funcionalidad, Lombok, dependencias y
+dockerización. Cambios aplicados:
+
+- **MapStruct eliminado**: estaba declarado en `order-service` e
+  `inventory-service` (dependencia + processor) pero nunca se usaba —
+  el mapeo siempre se hizo a mano con `toResponse()`.
+- **`@Transactional` inefectivo corregido en `order-service`**: estaba en
+  un método privado invocado como `this.saveHistory(...)` (auto-invocación),
+  lo que hace que el proxy de Spring nunca lo intercepte. Se movió a un
+  bean nuevo, `OrderTransitionWriter`, para que el pedido y su historial se
+  guarden de forma atómica de verdad.
+- **`@Transactional` inefectivo corregido en `inventory-service`**: estaba
+  sobre un método que devuelve `Mono` y ejecuta el trabajo real en otro
+  hilo (`subscribeOn(boundedElastic)`) — Spring cerraba la transacción
+  antes de que el trabajo ocurriera. Se quitó (la atomicidad real la da el
+  único `repository.save()`, que ya es transaccional por sí mismo, más el
+  bloqueo optimista vía `@Version`).
+- **Actuator agregado a los 3 servicios** (auth/order/inventory) que ya
+  referenciaban `/actuator/health` en su configuración de seguridad pero no
+  tenían la dependencia — el endpoint no existía.
+- **`docker-compose.yml` reescrito** con healthchecks reales (via
+  `/actuator/health`) en los 4 servicios Java y `depends_on` con
+  `condition: service_healthy` en toda la cadena
+  (`mysql → inventory-service → order-service → api-gateway`), en vez de
+  solo esperar a que el contenedor arrancara.
+- **Puerto de `mysql-order` movido de 3306 a 3316** (host) para evitar
+  choques con instalaciones locales de MySQL, que casi siempre usan 3306
+  por defecto.
+- **Fuga de MDC corregida en `api-gateway`**: `TraceIdGlobalFilter` ponía el
+  `traceId` en el MDC pero nunca lo limpiaba al terminar la petición, a
+  diferencia de `order-service`/`inventory-service`. En el pool de hilos
+  compartido de Netty esto podía filtrar el `traceId` de una petición hacia
+  los logs de otra petición concurrente.
+- Tests de `order-service` actualizados para reflejar el nuevo
+  `OrderTransitionWriter`.
+- **Columna `id` con tipo inconsistente**: `UUID id` con
+  `GenerationType.UUID` mapea a `BINARY(16)` por defecto en Hibernate 6 +
+  MySQL, pero `data.sql` inserta con la función `UUID()` de MySQL (string
+  de 36 caracteres) — se corrompía al chocar con `BINARY(16)`. Se forzó
+  `hibernate.type.preferred_uuid_jdbc_type: CHAR` en order-service e
+  inventory-service. **Si ya tenías un volumen de Docker levantado con el
+  tipo viejo, hay que recrearlo**: `docker compose down -v && docker
+  compose up --build` (`ddl-auto: update` no corrige el tipo de una
+  columna ya existente).
+- **`lombok.config` agregado en la raíz** fijando el uso de Lombok a lo
+  estándar en los 4 servicios (ya se usaba solo
+  `@Getter/@Setter/@NoArgsConstructor/@AllArgsConstructor/@Builder` en
+  entidades — nunca `@Data`/`@Value`/`@EqualsAndHashCode`/`@ToString`, que
+  son las que suelen chocar con JPA).
+
+Verificado: los 53 archivos `.java` compilan sin errores de sintaxis
+(`javac 21`, sin classpath de Spring por restricciones de red del entorno de
+desarrollo). Postman collection revisada endpoint por endpoint contra los
+controllers/DTOs/`SecurityConfig` — sin inconsistencias.

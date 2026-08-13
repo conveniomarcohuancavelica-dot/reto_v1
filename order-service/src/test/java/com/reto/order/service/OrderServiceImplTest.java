@@ -2,13 +2,11 @@ package com.reto.order.service;
 
 import com.reto.order.client.InventoryClient;
 import com.reto.order.domain.Order;
-import com.reto.order.domain.OrderHistory;
 import com.reto.order.domain.OrderStatus;
 import com.reto.order.dto.CreateOrderRequest;
 import com.reto.order.dto.InventoryAvailabilityResponse;
 import com.reto.order.exception.InvalidOrderTransitionException;
 import com.reto.order.exception.OrderNotFoundException;
-import com.reto.order.exception.StockInsufficientException;
 import com.reto.order.repository.OrderHistoryRepository;
 import com.reto.order.repository.OrderRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +23,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,6 +36,8 @@ class OrderServiceImplTest {
     private OrderHistoryRepository historyRepository;
     @Mock
     private InventoryClient inventoryClient;
+    @Mock
+    private OrderTransitionWriter transitionWriter;
 
     @InjectMocks
     private OrderServiceImpl orderService;
@@ -56,6 +58,18 @@ class OrderServiceImplTest {
                 .build();
     }
 
+    private Order withStatus(Order source, OrderStatus status) {
+        return Order.builder()
+                .id(source.getId())
+                .customerId(source.getCustomerId())
+                .productId(source.getProductId())
+                .quantity(source.getQuantity())
+                .status(status)
+                .createdAt(source.getCreatedAt())
+                .updatedAt(Instant.now())
+                .build();
+    }
+
     @Test
     void createOrder_deberiaConfirmarCuandoHayStockSuficiente() {
         CreateOrderRequest request = new CreateOrderRequest("CUST-1", "PROD-001", 2);
@@ -64,12 +78,15 @@ class OrderServiceImplTest {
                 .thenReturn(Mono.just(new InventoryAvailabilityResponse("PROD-001", "Laptop", 10, true)));
         when(inventoryClient.reserveStock("PROD-001", 2))
                 .thenReturn(Mono.just(new InventoryAvailabilityResponse("PROD-001", "Laptop", 8, true)));
+        when(transitionWriter.transition(any(Order.class), eq(OrderStatus.CONFIRMED), anyString(), anyString()))
+                .thenReturn(withStatus(pendingOrder, OrderStatus.CONFIRMED));
 
         StepVerifier.create(orderService.createOrder(request, "trace-123"))
                 .expectNextMatches(response -> response.status() == OrderStatus.CONFIRMED)
                 .verifyComplete();
 
-        verify(historyRepository, times(1)).save(any(OrderHistory.class));
+        verify(transitionWriter, times(1))
+                .transition(any(Order.class), eq(OrderStatus.CONFIRMED), anyString(), anyString());
     }
 
     @Test
@@ -78,6 +95,8 @@ class OrderServiceImplTest {
         when(orderRepository.save(any(Order.class))).thenReturn(pendingOrder);
         when(inventoryClient.checkAvailability("PROD-001"))
                 .thenReturn(Mono.just(new InventoryAvailabilityResponse("PROD-001", "Laptop", 1, true)));
+        when(transitionWriter.transition(any(Order.class), eq(OrderStatus.FAILED), anyString(), anyString()))
+                .thenReturn(withStatus(pendingOrder, OrderStatus.FAILED));
 
         StepVerifier.create(orderService.createOrder(request, "trace-123"))
                 .expectNextMatches(response -> response.status() == OrderStatus.FAILED)
@@ -89,7 +108,8 @@ class OrderServiceImplTest {
     @Test
     void cancelOrder_deberiaCancelarUnPedidoPendiente() {
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(pendingOrder));
-        when(orderRepository.save(any(Order.class))).thenReturn(pendingOrder);
+        when(transitionWriter.transition(any(Order.class), eq(OrderStatus.CANCELLED), anyString(), anyString()))
+                .thenReturn(withStatus(pendingOrder, OrderStatus.CANCELLED));
 
         StepVerifier.create(orderService.cancelOrder(orderId, "trace-123"))
                 .expectNextMatches(response -> response.status() == OrderStatus.CANCELLED)
@@ -100,6 +120,8 @@ class OrderServiceImplTest {
     void cancelOrder_noDeberiaPermitirCancelarUnPedidoYaCancelado() {
         pendingOrder.setStatus(OrderStatus.CANCELLED);
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(pendingOrder));
+        when(transitionWriter.transition(any(Order.class), eq(OrderStatus.CANCELLED), anyString(), anyString()))
+                .thenThrow(new InvalidOrderTransitionException(orderId, OrderStatus.CANCELLED, OrderStatus.CANCELLED));
 
         StepVerifier.create(orderService.cancelOrder(orderId, "trace-123"))
                 .expectError(InvalidOrderTransitionException.class)
@@ -129,6 +151,8 @@ class OrderServiceImplTest {
         when(orderRepository.save(any(Order.class))).thenReturn(zeroStockOrder);
         when(inventoryClient.checkAvailability("PROD-003"))
                 .thenReturn(Mono.just(new InventoryAvailabilityResponse("PROD-003", "Teclado", 0, false)));
+        when(transitionWriter.transition(any(Order.class), eq(OrderStatus.FAILED), anyString(), anyString()))
+                .thenReturn(withStatus(zeroStockOrder, OrderStatus.FAILED));
 
         StepVerifier.create(orderService.createOrder(request, "trace-999"))
                 .expectNextMatches(r -> r.status() == OrderStatus.FAILED)

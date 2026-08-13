@@ -1,0 +1,22 @@
+$kind: http-request
+name: 'Reservar Stock - PROD-001'
+method: POST
+url: '{{baseUrl}}/api/v1/inventory/reserve'
+order: 3000
+headers:
+  - key: Authorization
+    value: 'Bearer {{accessToken}}'
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "productId": "PROD-001",
+      "quantity": 1
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));

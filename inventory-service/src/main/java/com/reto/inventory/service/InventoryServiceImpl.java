@@ -9,7 +9,6 @@ import com.reto.inventory.repository.InventoryItemRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -30,8 +29,18 @@ public class InventoryServiceImpl implements InventoryService {
                         productId, r.stock()));
     }
 
+    /**
+     * OJO: aquí NO se pone @Transactional a propósito. En un flujo WebFlux
+     * con JPA bloqueante (Mono.fromCallable + subscribeOn(boundedElastic)),
+     * @Transactional sobre este método no protegería nada: el proxy de
+     * Spring abre/cierra la transacción de forma síncrona alrededor de la
+     * llamada al método (que solo devuelve un Mono "frío" al instante),
+     * mientras que el trabajo real ocurre después, en otro hilo — la
+     * transacción ya estaría cerrada. La atomicidad real la da el único
+     * repository.save() de más abajo (Spring Data JPA ya es transaccional
+     * por sí mismo) combinado con el bloqueo optimista de {@link InventoryItem#getVersion()}.
+     */
     @Override
-    @Transactional
     public Mono<AvailabilityResponse> reserveStock(ReserveStockRequest request) {
         return Mono.fromCallable(() -> {
                     InventoryItem item = repository.findByProductId(request.productId())
