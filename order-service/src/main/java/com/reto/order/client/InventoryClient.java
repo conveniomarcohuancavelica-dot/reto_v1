@@ -26,6 +26,14 @@ public class InventoryClient {
 
     private final WebClient inventoryWebClient;
 
+    /**
+     * [PASO 7 · FLUJO "Crear pedido"] — Se llama desde OrderServiceImpl
+     * (paso 4/5), justo después de guardar el pedido en PENDING. Esta es la
+     * llamada HTTP reactiva que SALE de order-service hacia inventory-service
+     * (el traceId viaja automático porque WebClient está configurado para
+     * propagar headers — ver WebClientConfig.java). El siguiente archivo en
+     * la secuencia, del lado de inventory-service, es su TraceIdWebFilter.
+     */
     public Mono<InventoryAvailabilityResponse> checkAvailability(String productId) {
         return inventoryWebClient.get()
                 .uri(uriBuilder -> uriBuilder
@@ -39,6 +47,13 @@ public class InventoryClient {
                 .doOnSubscribe(sub -> log.debug("Consultando disponibilidad de producto {} en Inventory Service", productId));
     }
 
+    /**
+     * [PASO 12 · FLUJO "Crear pedido"] — Segunda llamada saliente hacia
+     * inventory-service, ahora para descontar el stock. Solo se llega aquí
+     * si el PASO 11 (confirmOrIndicateStock) confirmó que hay stock
+     * suficiente. Del lado de inventory-service, esta vez el destino es
+     * InventoryController.reserveStock() -> PASO 13.
+     */
     public Mono<InventoryAvailabilityResponse> reserveStock(String productId, int quantity) {
         return inventoryWebClient.post()
                 .uri("/api/v1/inventory/reserve")

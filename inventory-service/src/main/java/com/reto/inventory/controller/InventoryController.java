@@ -16,11 +16,21 @@ public class InventoryController {
 
     private final InventoryService inventoryService;
 
+    /**
+     * [PASO 9 · FLUJO "Crear pedido"] — Recibe el GET que salió de
+     * InventoryClient.checkAvailability() (paso 7), ya pasado por el
+     * TraceIdWebFilter (paso 8). Delega en el service -> PASO 10.
+     */
     @GetMapping("/availability")
     public Mono<AvailabilityResponse> checkAvailability(@RequestParam String productId) {
         return inventoryService.checkAvailability(productId);
     }
 
+    /**
+     * [PASO 13 · FLUJO "Crear pedido"] — Recibe el POST que salió de
+     * InventoryClient.reserveStock() (paso 12). Esta es la llamada que de
+     * verdad descuenta stock -> PASO 14, en InventoryServiceImpl.
+     */
     @PostMapping("/reserve")
     @ResponseStatus(HttpStatus.OK)
     public Mono<AvailabilityResponse> reserveStock(@Valid @RequestBody ReserveStockRequest request) {

@@ -30,6 +30,14 @@ public class TraceIdGlobalFilter implements GlobalFilter, Ordered {
     public static final String TRACE_ID_HEADER = "X-Trace-Id";
     public static final String MDC_TRACE_ID_KEY = "traceId";
 
+    /**
+     * [PASO 1 · FLUJO "Crear pedido"] — Punto de entrada de TODO lo que pasa
+     * por el Gateway. Se ejecuta ANTES que la seguridad (ver getOrder() más
+     * abajo: HIGHEST_PRECEDENCE), así que el traceId existe incluso si la
+     * petición termina rechazada con 401. Después de esto, el siguiente
+     * archivo en la secuencia es SecurityConfig.java (mismo paquete
+     * .config) — ahí se valida el JWT antes de enrutar.
+     */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest originalRequest = exchange.getRequest();

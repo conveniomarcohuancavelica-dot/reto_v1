@@ -24,6 +24,14 @@ public class TraceIdWebFilter implements WebFilter {
     public static final String TRACE_ID_HEADER = "X-Trace-Id";
     public static final String MDC_TRACE_ID_KEY = "traceId";
 
+    /**
+     * [PASO 8 · FLUJO "Crear pedido"] — La petición que salió de order-service
+     * en el PASO 7 (o 12, en la segunda llamada) entra aquí primero, antes
+     * que InventoryController. Captura el traceId que venía en el header
+     * (propagado automáticamente por WebClient) y lo pone en el MDC de
+     * ESTE servicio, para que los logs de inventory-service también
+     * muestren el mismo traceId que el resto de la cadena.
+     */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String traceId = exchange.getRequest().getHeaders().getFirst(TRACE_ID_HEADER);

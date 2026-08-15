@@ -27,6 +27,15 @@ public class JwtService {
         this.issuer = issuer;
     }
 
+    /**
+     * FLUJO "Login" — último paso: construye y firma el JWT con la
+     * librería jjwt. La respuesta (el token) vuelve a AuthController, que
+     * la devuelve al cliente. Esta es la MISMA clave secreta
+     * (security.jwt.secret) que usa api-gateway/config/SecurityConfig.java
+     * para verificar la firma — por eso el token que emite auth-service es
+     * aceptado por el Gateway sin que ambos servicios se conozcan entre sí
+     * más allá de compartir ese secreto por configuración.
+     */
     public String generateToken(String username, String role) {
         Instant now = Instant.now();
         return Jwts.builder()

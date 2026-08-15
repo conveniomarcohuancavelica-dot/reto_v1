@@ -18,7 +18,7 @@
           "script": {
             "exec": [
               "const json = pm.response.json();",
-              "pm.collectionVariables.set('accessToken', json.accessToken);",
+              "pm.environment.set('accessToken', json.accessToken);",
               "pm.test('Status 200', () => pm.response.to.have.status(200));",
               "pm.test('Token presente', () => pm.expect(json.accessToken).to.not.be.empty);"
             ],
@@ -57,7 +57,7 @@
           "script": {
             "exec": [
               "const json = pm.response.json();",
-              "pm.collectionVariables.set('orderId', json.orderId);",
+              "pm.environment.set('orderId', json.orderId);",
               "pm.test('Status 201', () => pm.response.to.have.status(201));",
               "pm.test('X-Trace-Id presente en respuesta', () => pm.response.headers.has('X-Trace-Id'));"
             ],

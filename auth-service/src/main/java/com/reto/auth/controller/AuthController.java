@@ -20,6 +20,15 @@ public class AuthController {
     }
 
     /**
+     * FLUJO "Login" — PASO A: recibe usuario/contraseña y los valida contra
+     * la lista en memoria (InMemoryUser). Si son correctos, PASO B: delega
+     * en JwtService.generateToken() (siguiente archivo) para firmar el JWT
+     * que el cliente va a usar como "Authorization: Bearer {token}" en
+     * TODAS las demás peticiones (ese token es lo que valida
+     * api-gateway/config/SecurityConfig.java en el PASO 2 del flujo
+     * "Crear pedido"). Este endpoint es el único público sin token — está
+     * en la lista permitAll() del Gateway.
+     *
      * Autentica un usuario de prueba y devuelve un JWT firmado (HS256).
      * Este token debe enviarse como "Authorization: Bearer {token}" en cada
      * request al API Gateway.

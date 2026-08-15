@@ -22,6 +22,12 @@ public class OrderController {
 
     private final OrderService orderService;
 
+    /**
+     * [PASO 3 · FLUJO "Crear pedido"] — El Gateway ya validó el JWT (paso 2)
+     * y enrutó hasta aquí. Este método solo delega: no tiene lógica de
+     * negocio, la deja toda en el service (siguiente archivo:
+     * OrderServiceImpl.java, método createOrder()).
+     */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<OrderResponse> createOrder(@Valid @RequestBody CreateOrderRequest request, ServerWebExchange exchange) {

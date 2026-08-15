@@ -19,6 +19,15 @@ public enum OrderStatus {
     CANCELLED,
     FAILED;
 
+    /**
+     * [PASO 17 · FLUJO "Crear pedido" / "Cancelar pedido"] — La regla de
+     * negocio pura, sin efectos secundarios: dado el estado actual (this),
+     * ¿es válido pasar a "target"? Se llama desde
+     * OrderTransitionWriter.transition() (PASO 16). Si devuelve false, ahí
+     * mismo se lanza InvalidOrderTransitionException (409) — así se
+     * bloquean tanto transiciones inválidas como cancelaciones duplicadas
+     * (CANCELLED -> CANCELLED da false, porque es un estado terminal).
+     */
     public boolean canTransitionTo(OrderStatus target) {
         return switch (this) {
             case PENDING -> target == CONFIRMED || target == CANCELLED || target == FAILED;

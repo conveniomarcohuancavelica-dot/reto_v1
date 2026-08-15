@@ -19,6 +19,13 @@ public class InventoryServiceImpl implements InventoryService {
 
     private final InventoryItemRepository repository;
 
+    /**
+     * [PASO 10 · FLUJO "Crear pedido"] — Consulta el stock actual y responde.
+     * Esta respuesta viaja de vuelta: InventoryController -> por la red ->
+     * InventoryClient.checkAvailability (order-service) -> se resuelve el
+     * .flatMap del PASO 7 -> sigue en OrderServiceImpl.confirmOrIndicateStock,
+     * PASO 11.
+     */
     @Override
     public Mono<AvailabilityResponse> checkAvailability(String productId) {
         return Mono.fromCallable(() -> repository.findByProductId(productId)
@@ -39,6 +46,13 @@ public class InventoryServiceImpl implements InventoryService {
      * transacción ya estaría cerrada. La atomicidad real la da el único
      * repository.save() de más abajo (Spring Data JPA ya es transaccional
      * por sí mismo) combinado con el bloqueo optimista de {@link InventoryItem#getVersion()}.
+     */
+    /**
+     * [PASO 14 · FLUJO "Crear pedido"] — El descuento real de stock, con
+     * bloqueo optimista (@Version en InventoryItem, ver domain/InventoryItem.java).
+     * La respuesta vuelve por InventoryController -> por la red ->
+     * InventoryClient.reserveStock (order-service) -> se resuelve el
+     * .flatMap del PASO 12 -> transitionAndSave(CONFIRMED), PASO 15.
      */
     @Override
     public Mono<AvailabilityResponse> reserveStock(ReserveStockRequest request) {

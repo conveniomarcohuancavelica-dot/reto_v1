@@ -26,6 +26,13 @@ public class SecurityConfig {
     @Value("${security.jwt.secret}")
     private String jwtSecret;
 
+    /**
+     * [PASO 2 · FLUJO "Crear pedido"] — Ya con el traceId listo (paso 1),
+     * aquí se valida el JWT. Si es válido, Spring Cloud Gateway enruta la
+     * petición según las reglas de application.yml (no hay una clase Java
+     * para eso — son rutas declarativas) hacia order-service. El siguiente
+     * archivo en la secuencia es OrderController.java (order-service).
+     */
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         http
